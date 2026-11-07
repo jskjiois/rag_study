@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Помощник по конспектам информатики</title>
+  <style>
+    :root { font-family: Arial, sans-serif; color: #1b2637; background: #f2f5fa; }
+    body { margin: 0; }
+    main { max-width: 760px; margin: 6vh auto; padding: 28px; }
+    h1 { font-size: 2rem; margin: 0 0 10px; }
+    p { line-height: 1.55; }
+    .box { background: white; border: 1px solid #dce3ed; border-radius: 16px; padding: 24px; box-shadow: 0 12px 35px #1b263710; }
+    label { display: block; font-weight: bold; margin: 24px 0 8px; }
+    form { display: flex; gap: 10px; }
+    input { flex: 1; min-width: 0; font: inherit; padding: 12px; border: 1px solid #a9b5c6; border-radius: 8px; }
+    button { font: inherit; font-weight: bold; padding: 12px 18px; color: white; background: #245bb5; border: 0; border-radius: 8px; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: wait; }
+    #answer { white-space: pre-wrap; line-height: 1.55; }
+    #result { margin-top: 24px; }
+    #sources { padding-left: 20px; }
+    .hint { color: #526277; font-size: .95rem; }
+    @media (max-width: 600px) { main { margin: 0; padding: 16px; } form { flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="box">
+      <h1>Помощник по информатике</h1>
+      <p>Задай вопрос по школьной информатике или Python. Помощник найдет материал и покажет источник.</p>
+      <form id="form">
+        <input id="question" name="question" aria-label="Твой вопрос" placeholder="Например: что делает append в Python?" required>
+        <button id="send" type="submit">Спросить</button>
+      </form>
+      <p class="hint">Материалы: информатика 5-11 классов и книга по Python.</p>
+      <section id="result" hidden aria-live="polite">
+        <h2>Ответ</h2>
+        <div id="answer"></div>
+        <h3 id="source-heading" hidden>Источники</h3>
+        <ol id="sources"></ol>
+      </section>
+    </div>
+  </main>
+  <script>
+    const form = document.getElementById('form');
+    const question = document.getElementById('question');
+    const send = document.getElementById('send');
+    const result = document.getElementById('result');
+    const answer = document.getElementById('answer');
+    const sources = document.getElementById('sources');
+    const sourceHeading = document.getElementById('source-heading');
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      send.disabled = true;
+      result.hidden = false;
+      answer.textContent = 'Ищу ответ...';
+      sources.replaceChildren();
+      sourceHeading.hidden = true;
+      try {
+        const response = await fetch('/ask', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({question: question.value})
+        });
+        const data = await response.json();
+        answer.textContent = data.answer || data.error || 'Ответ не получен.';
+        for (const source of data.sources || []) {
+          const item = document.createElement('li');
+          item.textContent = `${source.name}, фрагмент ${source.fragment}`;
+          sources.append(item);
+        }
+        sourceHeading.hidden = sources.children.length === 0;
+      } catch {
+        answer.textContent = 'Не удалось связаться с приложением.';
+      } finally {
+        send.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

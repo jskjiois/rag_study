@@ -1,0 +1,30 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Загрузить пример",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/app.py",
+      "cwd": "${workspaceFolder}",
+      "args": ["ingest", "sample"]
+    },
+    {
+      "name": "Задать вопрос модели",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/app.py",
+      "cwd": "${workspaceFolder}",
+      "args": ["ask", "Что такое алгоритм?", "--model", "qwen2.5:3b"]
+    },
+    {
+      "name": "Диалог с моделью",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/app.py",
+      "cwd": "${workspaceFolder}",
+      "args": ["chat", "--model", "qwen2.5:3b"],
+      "console": "integratedTerminal"
+    }
+  ]
+}
