@@ -1,3 +1,4 @@
+param([string]$Mode = 'chat')
 $ErrorActionPreference = 'Continue'
 Set-Location -LiteralPath $PSScriptRoot -ErrorAction Stop
 
@@ -71,11 +72,13 @@ if (@($tags.models.name) -notcontains 'qwen2.5:3b') {
     }
 }
 
-& $python demo.py
-if ($LASTEXITCODE -ne 0) {
-    throw 'Demo failed.'
+if ($Mode -eq 'demo') {
+    & $python demo.py
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Demo failed.'
+    }
 }
-& $python app.py chat --model qwen2.5:3b
+& $python console.py
 if ($LASTEXITCODE -ne 0) {
     throw 'Chat failed.'
 }

@@ -1,81 +1,176 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Помощник по конспектам информатики</title>
-  <style>
-    :root { font-family: Arial, sans-serif; color: #1b2637; background: #f2f5fa; }
-    body { margin: 0; }
-    main { max-width: 760px; margin: 6vh auto; padding: 28px; }
-    h1 { font-size: 2rem; margin: 0 0 10px; }
-    p { line-height: 1.55; }
-    .box { background: white; border: 1px solid #dce3ed; border-radius: 16px; padding: 24px; box-shadow: 0 12px 35px #1b263710; }
-    label { display: block; font-weight: bold; margin: 24px 0 8px; }
-    form { display: flex; gap: 10px; }
-    input { flex: 1; min-width: 0; font: inherit; padding: 12px; border: 1px solid #a9b5c6; border-radius: 8px; }
-    button { font: inherit; font-weight: bold; padding: 12px 18px; color: white; background: #245bb5; border: 0; border-radius: 8px; cursor: pointer; }
-    button:disabled { opacity: .6; cursor: wait; }
-    #answer { white-space: pre-wrap; line-height: 1.55; }
-    #result { margin-top: 24px; }
-    #sources { padding-left: 20px; }
-    .hint { color: #526277; font-size: .95rem; }
-    @media (max-width: 600px) { main { margin: 0; padding: 16px; } form { flex-direction: column; } }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Локальный ИИ Qwen 2.5 3B</title>
+<style>
+:root{--bg:#f5f0e6;--panel:#fbf8f2;--line:#e4dccb;--text:#2b3a35;--muted:#74827b;--accent:#4f8a6f;--accent-d:#3d7159;--on-accent:#fff;--user:#dcebe2;--bot:#fffdf8;--code:#2b3a35;--code-t:#e8efe9;--shadow:0 8px 30px #2b3a3514;font-family:"Segoe UI",system-ui,-apple-system,sans-serif}
+:root[data-theme=dark]{--bg:#161c1a;--panel:#1d2522;--line:#2c3733;--text:#e3ebe6;--muted:#8fa097;--accent:#6fb592;--accent-d:#86c7a6;--on-accent:#13201a;--user:#26382f;--bot:#202a26;--code:#0f1513;--code-t:#d5e4da;--shadow:0 8px 30px #0006}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);display:flex;transition:background .25s}
+aside{width:290px;background:var(--panel);border-right:1px solid var(--line);padding:22px 18px;display:flex;flex-direction:column;gap:18px;overflow-y:auto}
+.logo{display:flex;gap:12px;align-items:center}
+.logo b{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:1.3rem}
+.logo h1{font-size:1.05rem;line-height:1.25;margin:0}
+.logo small{color:var(--muted);font-weight:400;display:block;font-size:.8rem}
+.status{display:flex;align-items:center;gap:8px;font-size:.88rem;color:var(--muted);background:var(--bg);padding:9px 12px;border-radius:10px}
+.dot{width:9px;height:9px;border-radius:50%;background:#c9a24a;flex:none}
+.dot.ok{background:#58b27f}.dot.bad{background:#d27a6a}
+h2{font-size:.74rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 8px}
+.docs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;font-size:.88rem}
+.docs li{padding:6px 10px;border-radius:8px;color:var(--text);text-transform:capitalize-first}
+.docs li:hover{background:var(--bg)}
+.side-btns{margin-top:auto;display:flex;gap:8px}
+.ghost{flex:1;font:inherit;font-size:.88rem;padding:9px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--text);cursor:pointer}
+.ghost:hover{background:var(--bg)}
+main{flex:1;display:flex;flex-direction:column;min-width:0}
+#chat{flex:1;overflow-y:auto;padding:28px 20px 10px;scroll-behavior:smooth}
+.wrap{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.hello{text-align:center;padding:7vh 0 10px}
+.hello .big{font-size:2.6rem}
+.hello h2{font-size:1.6rem;text-transform:none;letter-spacing:0;color:var(--text);margin:8px 0}
+.hello p{color:var(--muted);margin:0 0 22px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.chip{font:inherit;font-size:.9rem;padding:9px 15px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--text);cursor:pointer;transition:.15s}
+.chip:hover{border-color:var(--accent);transform:translateY(-1px)}
+.msg{display:flex;gap:10px;max-width:88%;animation:in .25s ease}
+.msg.user{align-self:flex-end;flex-direction:row-reverse}
+@keyframes in{from{opacity:0;transform:translateY(6px)}}
+.ava{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:var(--accent);color:var(--on-accent);flex:none;font-size:.95rem}
+.msg.user .ava{background:var(--user);color:var(--text)}
+.bubble{padding:12px 16px;border-radius:16px;background:var(--bot);border:1px solid var(--line);line-height:1.6;box-shadow:var(--shadow);overflow-wrap:anywhere;min-width:0}
+.msg.user .bubble{background:var(--user);border-color:transparent;box-shadow:none}
+.bubble p{margin:0 0 .6em;white-space:pre-wrap}.bubble p:last-child{margin:0}
+.bubble code{background:var(--bg);padding:1px 6px;border-radius:6px;font-family:Consolas,monospace;font-size:.9em}
+.bubble pre{background:var(--code);color:var(--code-t);padding:12px 14px;border-radius:10px;overflow-x:auto;margin:.6em 0;font-size:.88rem}
+.bubble pre code{background:none;padding:0;color:inherit}
+.src{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line);display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.8rem;color:var(--muted)}
+.src span.t{padding:3px 10px;border-radius:999px;background:var(--bg);color:var(--text)}
+.typing{display:flex;gap:5px;padding:6px 2px}
+.typing i{width:8px;height:8px;border-radius:50%;background:var(--muted);animation:b 1.1s infinite}
+.typing i:nth-child(2){animation-delay:.18s}.typing i:nth-child(3){animation-delay:.36s}
+@keyframes b{0%,80%,100%{opacity:.3;transform:none}40%{opacity:1;transform:translateY(-4px)}}
+.bubble.err{border-color:#d27a6a}
+footer{padding:10px 20px 18px}
+form{max-width:780px;margin:0 auto;display:flex;gap:10px;align-items:flex-end;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:8px 8px 8px 16px;box-shadow:var(--shadow);transition:border-color .15s}
+form:focus-within{border-color:var(--accent)}
+textarea{flex:1;border:0;outline:0;resize:none;background:transparent;color:var(--text);font:inherit;line-height:1.5;max-height:160px;padding:8px 0}
+textarea::placeholder{color:var(--muted)}
+#send{width:42px;height:42px;border:0;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:1.2rem;cursor:pointer;flex:none;transition:.15s}
+#send:hover:not(:disabled){background:var(--accent-d)}
+#send:disabled{opacity:.4;cursor:default}
+.note{text-align:center;font-size:.76rem;color:var(--muted);margin-top:8px}
+@media(max-width:800px){aside{display:none}.msg{max-width:96%}}
+</style>
 </head>
 <body>
-  <main>
-    <div class="box">
-      <h1>Помощник по информатике</h1>
-      <p>Задай вопрос по школьной информатике или Python. Помощник найдет материал и покажет источник.</p>
-      <form id="form">
-        <input id="question" name="question" aria-label="Твой вопрос" placeholder="Например: что делает append в Python?" required>
-        <button id="send" type="submit">Спросить</button>
-      </form>
-      <p class="hint">Материалы: информатика 5-11 классов и книга по Python.</p>
-      <section id="result" hidden aria-live="polite">
-        <h2>Ответ</h2>
-        <div id="answer"></div>
-        <h3 id="source-heading" hidden>Источники</h3>
-        <ol id="sources"></ol>
-      </section>
+<aside>
+  <div class="logo"><b>✦</b><h1>Локальный ИИ-помощник<small>Qwen 2.5 3B · Ollama</small></h1></div>
+  <div class="status"><span class="dot" id="dot"></span><span id="stat">Проверяю модель…</span></div>
+  <div><h2>Конспекты в базе <span id="count"></span></h2><ul class="docs" id="docs"></ul></div>
+  <div class="side-btns"><button class="ghost" id="new">＋ Новый чат</button><button class="ghost" id="theme" title="Тема">🌙</button></div>
+</aside>
+<main>
+  <div id="chat"><div class="wrap" id="list">
+    <div class="hello" id="hello">
+      <div class="big">👋</div><h2>Привет! Чем помочь с учёбой?</h2>
+      <p>Задавай любые вопросы. Ответы генерирует Qwen; история диалога учитывается.</p>
+      <div class="chips" id="chips"></div>
     </div>
-  </main>
-  <script>
-    const form = document.getElementById('form');
-    const question = document.getElementById('question');
-    const send = document.getElementById('send');
-    const result = document.getElementById('result');
-    const answer = document.getElementById('answer');
-    const sources = document.getElementById('sources');
-    const sourceHeading = document.getElementById('source-heading');
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      send.disabled = true;
-      result.hidden = false;
-      answer.textContent = 'Ищу ответ...';
-      sources.replaceChildren();
-      sourceHeading.hidden = true;
-      try {
-        const response = await fetch('/ask', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({question: question.value})
-        });
-        const data = await response.json();
-        answer.textContent = data.answer || data.error || 'Ответ не получен.';
-        for (const source of data.sources || []) {
-          const item = document.createElement('li');
-          item.textContent = `${source.name}, фрагмент ${source.fragment}`;
-          sources.append(item);
-        }
-        sourceHeading.hidden = sources.children.length === 0;
-      } catch {
-        answer.textContent = 'Не удалось связаться с приложением.';
-      } finally {
-        send.disabled = false;
-      }
+  </div></div>
+  <footer>
+    <form id="form">
+      <textarea id="q" rows="1" maxlength="2000" placeholder="Напиши вопрос… (Enter — отправить, Shift+Enter — новая строка)" autofocus></textarea>
+      <button id="send" type="submit" title="Отправить" aria-label="Отправить">➤</button>
+    </form>
+    <div class="note">Локальная модель Qwen 2.5 3B. Конспекты не ограничивают ответы ИИ.</div>
+  </footer>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const list=$('list'),chat=$('chat'),q=$('q'),send=$('send'),hello=$('hello');
+const examples=['Что такое алгоритм?','Что делает append в Python?','Как перевести число в двоичную систему?','Чем цикл for отличается от while?','Что такое IP-адрес?'];
+let busy=false;
+let history=[];
+
+// тема
+const root=document.documentElement;
+function setTheme(t){root.dataset.theme=t;$('theme').textContent=t==='dark'?'☀️':'🌙';try{localStorage.setItem('theme',t)}catch{}}
+let saved=null;try{saved=localStorage.getItem('theme')}catch{}
+setTheme(saved||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
+$('theme').onclick=()=>setTheme(root.dataset.theme==='dark'?'light':'dark');
+
+// быстрые вопросы
+for(const e of examples){const b=document.createElement('button');b.type='button';b.className='chip';b.textContent=e;b.onclick=()=>ask(e);$('chips').append(b)}
+
+// статус
+async function status(){
+  try{
+    const d=await (await fetch('/api/status')).json();
+    const m={ok:['ok',`Модель ${d.model} готова`],'no-model':['bad',`Нет модели. Выполни: ollama pull ${d.model}`],off:['bad','Ollama не запущена — ответы ИИ недоступны']}[d.ollama];
+    $('dot').className='dot '+m[0];$('stat').textContent=m[1];
+    $('count').textContent=d.documents.length?`(${d.documents.length})`:'';
+    $('docs').replaceChildren(...d.documents.map(x=>{const li=document.createElement('li');li.textContent=x.name;return li}));
+  }catch{$('dot').className='dot bad';$('stat').textContent='Нет связи с приложением'}
+}
+status();setInterval(status,15000);
+
+// текст с блоками кода → DOM (без innerHTML, чтобы ничего не исполнялось)
+function render(text){
+  const box=document.createDocumentFragment();
+  text.split(/```/).forEach((part,i)=>{
+    if(i%2){const pre=document.createElement('pre'),c=document.createElement('code');c.textContent=part.replace(/^[\w+-]*\n/,'').trim();pre.append(c);box.append(pre);return}
+    part.trim().split(/\n{2,}/).filter(Boolean).forEach(par=>{
+      const p=document.createElement('p');
+      par.split(/(`[^`\n]+`)/).forEach(s=>{
+        if(s.length>2&&s[0]==='`'&&s.endsWith('`')){const c=document.createElement('code');c.textContent=s.slice(1,-1);p.append(c)}else p.append(s)
+      });
+      box.append(p);
     });
-  </script>
+  });
+  return box;
+}
+
+function add(role,content,extra){
+  hello.hidden=true;
+  const m=document.createElement('div');m.className='msg '+role;
+  const a=document.createElement('div');a.className='ava';a.textContent=role==='user'?'🙂':'🎓';
+  const b=document.createElement('div');b.className='bubble';
+  typeof content==='string'?b.append(render(content)):b.append(content);
+  if(extra)b.classList.add(extra);
+  m.append(a,b);list.append(m);chat.scrollTop=chat.scrollHeight;
+  return b;
+}
+
+async function ask(text){
+  text=text.trim();if(!text||busy)return;
+  busy=true;send.disabled=true;q.value='';grow();
+  add('user',text);
+  const dots=document.createElement('div');dots.className='typing';dots.innerHTML='<i></i><i></i><i></i>';
+  const bubble=add('bot',dots);
+  try{
+    const r=await fetch('/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:text,history:history.slice(-12)})});
+    const d=await r.json();
+    bubble.replaceChildren(render(d.answer||d.error||'Ответ не получен.'));
+    if(!r.ok)bubble.classList.add('err');
+    if(r.ok&&d.answer){history.push({role:'user',content:text},{role:'assistant',content:d.answer});history=history.slice(-12)}
+    if(d.sources&&d.sources.length){
+      const s=document.createElement('div');s.className='src';s.append('📎 Источники:');
+      d.sources.forEach((x,i)=>{const t=document.createElement('span');t.className='t';t.textContent=`[${i+1}] ${x.name}, фр. ${x.fragment}`;s.append(t)});
+      bubble.append(s);
+    }
+  }catch{bubble.replaceChildren('Не удалось связаться с приложением. Проверь, что окно с программой не закрыто.');bubble.classList.add('err')}
+  busy=false;send.disabled=!q.value.trim();q.focus();chat.scrollTop=chat.scrollHeight;
+}
+
+function grow(){q.style.height='auto';q.style.height=Math.min(q.scrollHeight,160)+'px';send.disabled=busy||!q.value.trim()}
+q.addEventListener('input',grow);
+q.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();ask(q.value)}});
+$('form').addEventListener('submit',e=>{e.preventDefault();ask(q.value)});
+$('new').onclick=()=>{[...list.querySelectorAll('.msg')].forEach(m=>m.remove());history=[];hello.hidden=false;q.focus()};
+grow();
+</script>
 </body>
 </html>

@@ -15,7 +15,7 @@ from xml.etree import ElementTree
 
 WORD = re.compile(r"[\wёЁ]+", re.UNICODE)
 SUPPORTED = {".txt", ".md", ".docx", ".pdf"}
-ENDINGS = ("иями", "ями", "ами", "ого", "ему", "ыми", "ими", "овать", "ировать", "ешь", "ают", "яют", "ует", "ют", "ет", "ут", "ят", "ть", "ого", "ому", "ыми", "ими", "иях", "ах", "ях", "ам", "ям", "ов", "ев", "ый", "ий", "ая", "ое", "ые", "ых", "ой", "ей", "ом", "ем", "а", "я", "ы", "и", "е", "у", "ю", "ь")
+ENDINGS = ("ующими", "ующему", "ующего", "ующую", "ировать", "ировать", "иями", "ями", "ами", "ого", "ыми", "ими", "овать", "ешь", "ают", "яют", "ует", "уют", "юют", "ую", "юю", "ого", "ому", "ыми", "ими", "иях", "ах", "ях", "ам", "ям", "ов", "ев", "ый", "ий", "ая", "ое", "ые", "ых", "ой", "ей", "ом", "ем", "ую", "юю", "а", "я", "ы", "и", "е", "у", "ю", "ь")
 
 
 def normalize(word: str) -> str:
@@ -143,6 +143,38 @@ def search(question: str, database: Path, top_k: int = 3) -> list[dict]:
     return sorted(ranked, key=lambda item: item["score"], reverse=True)[:top_k]
 
 
+def relevant_matches(question: str, matches: list[dict]) -> list[dict]:
+    """Оставляет только достаточно близкие к вопросу фрагменты библиотеки."""
+    if not matches:
+        return []
+
+    query_terms = {
+        token for token in tokenize(question)
+        if token not in STOPWORDS and len(token) > 2
+    }
+    if not query_terms:
+        return []
+
+    best_score = float(matches[0].get("score", 0))
+    selected = []
+    for match in matches:
+        score = float(match.get("score", 0))
+        document_terms = set(tokenize(match.get("text", "")))
+        overlap = query_terms & document_terms
+        coverage = len(overlap) / len(query_terms)
+        if score >= 0.32 or (score >= 0.14 and coverage >= 0.5 and len(overlap) >= 1):
+            selected.append(match)
+
+    if selected:
+        cutoff = max(0.12, best_score * 0.45)
+        selected = [match for match in selected if float(match.get("score", 0)) >= cutoff]
+    return selected
+
+
+def has_relevant_matches(question: str, matches: list[dict]) -> bool:
+    return bool(relevant_matches(question, matches))
+
+
 def short_answer(question: str, matches: list[dict]) -> str:
     if not matches:
         return "В загруженных материалах ответа нет."
@@ -157,33 +189,108 @@ def short_answer(question: str, matches: list[dict]) -> str:
     return chosen[:500].strip()
 
 
-def answer(question: str, database: Path, top_k: int = 3, model: str | None = None, url: str = "http://127.0.0.1:11434") -> tuple[str, list[dict]]:
-    matches = search(question, database, top_k)
-    if matches:
-        cutoff = max(0.1, matches[0]["score"] * 0.65)
-        matches = [item for item in matches if item["score"] >= cutoff]
-    if not matches and model is None:
-        return "В загруженных материалах ответа нет.", []
-    if model is None:
-        return short_answer(question, matches), matches
-    if matches:
-        context = "\n\n".join(f"[{index}] {item['text']}" for index, item in enumerate(matches, 1))
-        prompt = "Ответь по-русски кратко и только на вопрос. Используй факты из фрагментов. Если ответа там нет, так и скажи. В конце укажи номер источника в квадратных скобках.\n\nФрагменты:\n" + context + "\n\nВопрос: " + question
+def answer(
+    question: str,
+    database: Path,
+    top_k: int = 3,
+    model: str | None = None,
+    url: str = "http://127.0.0.1:11434",
+    history: list[dict] | None = None,
+    mode: str | None = None,
+    matches_override: list[dict] | None = None,
+) -> tuple[str, list[dict]]:
+    """Отвечает через Ollama; в режиме rag использует отобранные фрагменты библиотеки.
+
+    В режиме ai модель отвечает самостоятельно без контекста библиотеки.
+    Консольный автоматический режим выбирает между ними после оценки поиска.
+    """
+    if mode is None:
+        mode = "ai" if model is not None else "rag"
+    if mode not in {"ai", "rag"}:
+        raise ValueError("Режим должен быть ai или rag")
+
+    if mode == "rag":
+        found = matches_override if matches_override is not None else search(question, database, top_k)
+        matches = relevant_matches(question, found)
     else:
-        prompt = "Ответь по-русски на вопрос по информатике или Python. Не больше 100 слов. Если нужен код, используй стандартную библиотеку Python и не больше 8 строк. Не выдумывай источник.\n\nВопрос: " + question
-    payload = json.dumps({"model": model, "prompt": prompt, "stream": False, "options": {"num_predict": 300 if not matches else 180, "temperature": 0}}).encode("utf-8")
-    request = urllib.request.Request(url.rstrip("/") + "/api/generate", data=payload, headers={"Content-Type": "application/json"})
+        matches = []
+    if model is None:
+        if not matches:
+            return "В загруженных материалах ответа нет.", []
+        return short_answer(question, matches), matches
+
+    if mode == "rag":
+        system = (
+            "Ты — русскоязычный учебный помощник. В первую очередь отвечай по переданным фрагментам библиотеки проекта. "
+            "Не выдумывай сведения и не приписывай их конспектам, если их там нет. "
+            "Объясняй содержание своими словами, сохраняя точность. Если библиотека раскрывает только часть вопроса, "
+            "чётко обозначь, какая часть подтверждается материалами. Не добавляй неподтверждённые детали."
+        )
+    else:
+        system = (
+            "Ты — полезный русскоязычный ИИ-помощник. Отвечай самостоятельно, опираясь на свои знания. "
+            "Помогай с программированием, информатикой, обучением и обычными вопросами. "
+            "Объясняй понятно и по делу; при необходимости давай примеры и рабочий код. "
+            "Если не знаешь точного ответа, честно скажи об этом."
+        )
+
+    prompt_parts = []
+    if history:
+        for message in history[-12:]:
+            role = "Пользователь" if message.get("role") == "user" else "Ассистент"
+            content = str(message.get("content", "")).strip()
+            if content:
+                prompt_parts.append(f"{role}: {content}")
+
+    if matches:
+        context = "\n\n".join(
+            f"[Фрагмент {index}] {item['text']}"
+            for index, item in enumerate(matches, 1)
+        )
+        prompt_parts.append(
+            "Основные материалы из библиотеки проекта. Используй их как главный источник ответа; "
+            "не добавляй неподтверждённые сведения:\n" + context
+        )
+
+    prompt_parts.append(f"Пользователь: {question}\nАссистент:")
+    prompt = "\n\n".join(prompt_parts)
+    payload = json.dumps(
+        {
+            "model": model,
+            "system": system,
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "num_predict": 900,
+                "temperature": 0.45,
+                "top_p": 0.9,
+                "repeat_penalty": 1.1,
+            },
+        },
+        ensure_ascii=False,
+    ).encode("utf-8")
+    request = urllib.request.Request(
+        url.rstrip("/") + "/api/generate",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+    )
     try:
-        with urllib.request.urlopen(request, timeout=120) as response:
+        with urllib.request.urlopen(request, timeout=180) as response:
             result = json.load(response)
     except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
         if exc.code == 404:
-            return f"Модель {model} не найдена. Загрузите её командой ollama pull {model}.\n\n{short_answer(question, matches)}", matches
-        return f"Ollama вернула ошибку {exc.code}. {short_answer(question, matches)}", matches
-    except (urllib.error.URLError, TimeoutError, OSError):
-        return "Ollama не запущена. " + short_answer(question, matches), matches
-    if not result.get("response"):
-        raise RuntimeError("Ollama вернула пустой ответ")
-    if not matches:
-        return "В загруженных конспектах нет источника для этого вопроса. Ответ модели:\n" + result["response"].strip(), []
-    return result["response"].strip(), matches
+            raise RuntimeError(
+                f"Модель {model} не найдена. Выполни в терминале: ollama pull {model}"
+            ) from exc
+        raise RuntimeError(f"Ollama вернула ошибку {exc.code}: {detail[:500]}") from exc
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        raise RuntimeError(
+            "Не удалось подключиться к Ollama. Проверь, что Ollama запущена и модель доступна."
+        ) from exc
+
+    text = str(result.get("response", "")).strip()
+    if not text:
+        raise RuntimeError("Qwen вернула пустой ответ. Попробуй задать вопрос ещё раз.")
+    return text, matches
+

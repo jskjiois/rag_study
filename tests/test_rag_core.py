@@ -1,4 +1,5 @@
 import tempfile
+import json
 import unittest
 import zipfile
 import io
@@ -7,7 +8,7 @@ from unittest.mock import patch
 from urllib.error import URLError
 from pathlib import Path
 
-from rag_core import answer, ingest, read_document, search, split_text
+from rag_core import answer, has_relevant_matches, ingest, read_document, search, split_text
 
 
 class RagCoreTests(unittest.TestCase):
@@ -35,13 +36,29 @@ class RagCoreTests(unittest.TestCase):
             self.assertEqual(search("векторный поиск", database), [])
             self.assertTrue(search("Луна", database))
 
+    def test_library_relevance_and_fallback_decision(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "notes.txt"
+            database = root / "index.sqlite"
+            source.write_text(
+                "Алгоритм - это последовательность шагов. Машинное обучение находит закономерности по примерам. "
+                "В Python метод append добавляет элемент в список. Для перевода числа в двоичную систему делят его на два.",
+                encoding="utf-8",
+            )
+            ingest(source, database)
+            self.assertTrue(has_relevant_matches("Что такое алгоритм?", search("Что такое алгоритм?", database)))
+            self.assertTrue(has_relevant_matches("Объясни машинное обучение", search("Объясни машинное обучение", database)))
+            self.assertTrue(has_relevant_matches("Что делает append в Python?", search("Что делает append в Python?", database)))
+            self.assertFalse(has_relevant_matches("Почему небо голубое?", search("Почему небо голубое?", database)))
+
     def test_no_match(self):
         with tempfile.TemporaryDirectory() as directory:
             response, matches = answer("вопрос", Path(directory) / "missing.sqlite")
             self.assertEqual(matches, [])
             self.assertIn("ответа нет", response)
 
-    def test_short_answer_and_offline_model(self):
+    def test_rag_without_model(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source = root / "notes.txt"
@@ -51,19 +68,49 @@ class RagCoreTests(unittest.TestCase):
             response, matches = answer("Что такое RAG?", database)
             self.assertIn("RAG соединяет поиск", response)
             self.assertEqual(len(matches), 1)
-            with patch("rag_core.urllib.request.urlopen", side_effect=URLError("connection refused")):
-                response, _ = answer("Что такое RAG?", database, model="llama3.2:3b")
-            self.assertIn("Ollama не запущена", response)
-            self.assertIn("RAG соединяет поиск", response)
 
-    def test_model_without_matching_source(self):
+    def test_ai_mode_uses_model_without_searching_notes(self):
         with tempfile.TemporaryDirectory() as directory:
-            database = Path(directory) / "missing.sqlite"
-            with patch("rag_core.urllib.request.urlopen", return_value=io.BytesIO(b'{"response":"Use a list."}')):
-                response, matches = answer("Как создать список в Python?", database, model="qwen2.5:3b")
+            root = Path(directory)
+            source = root / "notes.txt"
+            database = root / "index.sqlite"
+            source.write_text("Уникальное слово конспекта: квазарныймяч.", encoding="utf-8")
+            ingest(source, database)
+            captured = {}
+            def fake_urlopen(request, timeout=0):
+                captured["payload"] = json.loads(request.data.decode("utf-8"))
+                return io.BytesIO(json.dumps({"response": "Я отвечаю как обычный ИИ."}, ensure_ascii=False).encode("utf-8"))
+            with patch("rag_core.urllib.request.urlopen", side_effect=fake_urlopen):
+                response, matches = answer(
+                    "Объясни, что такое рекурсия.", database, model="qwen2.5:3b",
+                    history=[{"role": "user", "content": "Привет"}, {"role": "assistant", "content": "Здравствуйте!"}],
+                )
             self.assertEqual(matches, [])
-            self.assertIn("нет источника", response)
-            self.assertIn("Use a list.", response)
+            self.assertIn("обычный ИИ", response)
+            self.assertIn("Объясни, что такое рекурсия", captured["payload"]["prompt"])
+            self.assertIn("Здравствуйте!", captured["payload"]["prompt"])
+
+    def test_rag_mode_adds_notes_as_optional_context(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "notes.txt"
+            database = root / "index.sqlite"
+            source.write_text("Рекурсия — это вызов функцией самой себя.", encoding="utf-8")
+            ingest(source, database)
+            captured = {}
+            def fake_urlopen(request, timeout=0):
+                captured["payload"] = json.loads(request.data.decode("utf-8"))
+                return io.BytesIO(json.dumps({"response": "Рекурсия — это вызов функции самой себя."}, ensure_ascii=False).encode("utf-8"))
+            with patch("rag_core.urllib.request.urlopen", side_effect=fake_urlopen):
+                response, matches = answer("Что такое рекурсия?", database, model="qwen2.5:3b", mode="rag")
+            self.assertTrue(matches)
+            self.assertIn("Основные материалы из библиотеки", captured["payload"]["prompt"])
+            self.assertIn("главный источник ответа", captured["payload"]["prompt"])
+
+    def test_ollama_offline_reports_error_in_ai_mode(self):
+        with patch("rag_core.urllib.request.urlopen", side_effect=URLError("connection refused")):
+            with self.assertRaisesRegex(RuntimeError, "Не удалось подключиться к Ollama"):
+                answer("Что такое RAG?", Path("missing.sqlite"), model="qwen2.5:3b")
 
     def test_chat_waits_for_questions(self):
         from app import main
