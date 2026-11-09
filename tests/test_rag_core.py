@@ -8,7 +8,7 @@ from unittest.mock import patch
 from urllib.error import URLError
 from pathlib import Path
 
-from rag_core import answer, has_relevant_matches, ingest, read_document, search, split_text
+from rag_core import answer, exact_string_concat_code, has_relevant_matches, ingest, read_document, search, split_text
 
 
 class RagCoreTests(unittest.TestCase):
@@ -52,6 +52,17 @@ class RagCoreTests(unittest.TestCase):
             self.assertTrue(has_relevant_matches("Что делает append в Python?", search("Что делает append в Python?", database)))
             self.assertFalse(has_relevant_matches("Почему небо голубое?", search("Почему небо голубое?", database)))
 
+    def test_exact_string_concat_preserves_quoted_phrases(self):
+        code = exact_string_concat_code('Напиши код, который соединяет строки "hello there" и "good bye"')
+        self.assertEqual(
+            code,
+            "first = 'hello there'\nsecond = 'good bye'\nresult = first + second\nprint(result)",
+        )
+
+    def test_exact_string_concat_does_not_trigger_for_general_question(self):
+        self.assertIsNone(exact_string_concat_code("Что значит соединить пись и сись?"))
+
+
     def test_no_match(self):
         with tempfile.TemporaryDirectory() as directory:
             response, matches = answer("вопрос", Path(directory) / "missing.sqlite")
@@ -89,6 +100,9 @@ class RagCoreTests(unittest.TestCase):
             self.assertIn("обычный ИИ", response)
             self.assertIn("Объясни, что такое рекурсия", captured["payload"]["prompt"])
             self.assertIn("Здравствуйте!", captured["payload"]["prompt"])
+            self.assertIn("Не заменяй", captured["payload"]["system"])
+            self.assertEqual(captured["payload"]["options"]["temperature"], 0.1)
+            self.assertEqual(captured["payload"]["options"]["seed"], 42)
 
     def test_rag_mode_adds_notes_as_optional_context(self):
         with tempfile.TemporaryDirectory() as directory:

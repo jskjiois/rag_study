@@ -13,7 +13,7 @@ import urllib.request
 from contextlib import closing
 from pathlib import Path
 
-from rag_core import answer, connect, has_relevant_matches, ingest, search
+from rag_core import answer, connect, exact_string_concat_code, has_relevant_matches, ingest, search
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -178,6 +178,13 @@ def show_answer(question: str, history: list[dict], mode: str) -> str | None:
     for row in textwrap.wrap(question, width() - 2):
         print("  " + paint(row, TEXT))
     print()
+
+    exact_code = exact_string_concat_code(question)
+    if exact_code is not None:
+        print(paint("  [ТОЧНОЕ ВЫПОЛНЕНИЕ] Исходные слова сохранены без изменений.", OK))
+        panel(render(exact_code), "Точное соединение строк · Python", ACCENT)
+        print()
+        return exact_code
 
     route = mode
     matches: list[dict] = []

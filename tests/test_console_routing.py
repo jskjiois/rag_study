@@ -39,6 +39,21 @@ class ConsoleRoutingTests(unittest.TestCase):
         self.assertIn("Найдены подходящие материалы", output.getvalue())
         self.assertIn("Источники из библиотеки", output.getvalue())
 
+    def test_literal_string_concat_is_preserved_exactly(self):
+        output = io.StringIO()
+        with patch("console.answer") as model_answer, patch("console.search") as library_search:
+            with redirect_stdout(output):
+                response = console.show_answer("Соедини кодом пись и сись", [], "auto")
+
+        self.assertEqual(
+            response,
+            "first = 'пись'\nsecond = 'сись'\nresult = first + second\nprint(result)",
+        )
+        self.assertIn("Исходные слова сохранены без изменений", output.getvalue())
+        model_answer.assert_not_called()
+        library_search.assert_not_called()
+
+
 
 if __name__ == "__main__":
     unittest.main()
