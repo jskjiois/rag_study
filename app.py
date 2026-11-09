@@ -19,7 +19,7 @@ def show_answer(question: str, database: Path, top_k: int, model: str | None, ur
 
 def main() -> int:
     if len(sys.argv) == 1:
-        print('Для первого запуска открой терминал в папке проекта и выполни .\\start.cmd')
+        print("Открой start.cmd двойным щелчком в папке проекта.")
         return 0
 
     parser = argparse.ArgumentParser(description="Локальный помощник по учебным материалам")

@@ -1,0 +1,15 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Запустить помощника",
+      "type": "process",
+      "command": "cmd.exe",
+      "args": ["/d", "/c", "start.cmd"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
