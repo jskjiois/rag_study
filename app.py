@@ -18,6 +18,10 @@ def show_answer(question: str, database: Path, top_k: int, model: str | None, ur
 
 
 def main() -> int:
+    if len(sys.argv) == 1:
+        print('Для первого запуска открой терминал в папке проекта и выполни .\\start.cmd')
+        return 0
+
     parser = argparse.ArgumentParser(description="Локальный помощник по учебным материалам")
     parser.add_argument("--db", type=Path, default=Path("data/index.sqlite"), help="Путь к индексу SQLite")
     commands = parser.add_subparsers(dest="command", required=True)

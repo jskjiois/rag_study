@@ -21,12 +21,24 @@ if (-not (Test-Path -LiteralPath $python)) {
     throw 'Python 3 not found. Install Python and try again.'
 }
 
+& $python --version 2>$null
+if ($LASTEXITCODE -ne 0) {
+    throw 'The .venv folder is broken. Remove it and start again.'
+}
+& $python -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)'
+if ($LASTEXITCODE -ne 0) {
+    throw 'Python 3.10 or newer is required.'
+}
+
 & $python -m pip install -r requirements.txt
 if ($LASTEXITCODE -ne 0) {
     throw 'Could not install Python packages.'
 }
 
 $ollama = Join-Path $env:LOCALAPPDATA 'Programs\Ollama\ollama.exe'
+if (-not (Test-Path -LiteralPath $ollama)) {
+    $ollama = Join-Path $env:ProgramFiles 'Ollama\ollama.exe'
+}
 if (-not (Test-Path -LiteralPath $ollama)) {
     $command = Get-Command ollama -ErrorAction SilentlyContinue
     if ($null -eq $command) {
