@@ -30,7 +30,6 @@ EXAMPLES = ["Что такое алгоритм?", "Что делает append �
 
 # Спокойная палитра: шалфейный зелёный, тёплый кремовый, янтарь для источников
 ACCENT, TEXT, MUTED, AMBER, OK, BAD, ME = "134;199;166", "232;226;212", "138;154;146", "217;178;111", "127;199;154", "217;138;122", "158;197;217"
-CODE_BG = "\x1b[48;2;34;44;40m"
 RESET = "\x1b[0m"
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -73,8 +72,7 @@ def render(markdown: str) -> list[str]:
     for index, part in enumerate(markdown.split("```")):
         if index % 2:
             code = re.sub(r"^[\w+-]*\n", "", part).strip("\n")
-            for row in code.split("\n"):
-                out.append(CODE_BG + paint(" " + row[: inner - 2].ljust(inner - 2) + " ", "213;228;218"))
+            out.extend(code.split("\n"))
             continue
         for paragraph in re.split(r"\n\s*\n", part.strip()):
             for row in paragraph.split("\n"):
@@ -182,7 +180,8 @@ def show_answer(question: str, history: list[dict], mode: str) -> str | None:
     exact_code = exact_string_concat_code(question)
     if exact_code is not None:
         print(paint("  [ТОЧНОЕ ВЫПОЛНЕНИЕ] Исходные слова сохранены без изменений.", OK))
-        panel(render(exact_code), "Точное соединение строк · Python", ACCENT)
+        print(paint("Точное соединение строк · Python", ACCENT, True))
+        print(exact_code)
         print()
         return exact_code
 
@@ -235,7 +234,9 @@ def show_answer(question: str, history: list[dict], mode: str) -> str | None:
     elif route == "ai":
         lines.append("")
         lines.append(paint("Источник ответа: знания модели Qwen 2.5 3B; подходящие фрагменты библиотеки не найдены.", MUTED))
-    panel(lines, "Qwen 2.5 3B")
+    print(paint("Qwen 2.5 3B", ACCENT, True))
+    for line in lines:
+        print(line)
     print()
     return response
 

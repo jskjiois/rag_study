@@ -53,6 +53,19 @@ class ConsoleRoutingTests(unittest.TestCase):
         model_answer.assert_not_called()
         library_search.assert_not_called()
 
+    def test_code_is_plain_and_not_cut_to_terminal_width(self):
+        code = "    value = '" + "x" * 120 + "'\n    print(value)"
+        output = io.StringIO()
+        with patch("console.search", return_value=[]), patch(
+            "console.with_spinner", side_effect=lambda label, func, *args, **kwargs: func(*args, **kwargs)
+        ), patch("console.answer", return_value=("```python\n" + code + "\n```", [])):
+            with redirect_stdout(output):
+                console.show_answer("Напиши код", [], "auto")
+        rendered = output.getvalue()
+        self.assertIn(code, rendered)
+        self.assertNotIn("\x1b[48;", rendered)
+        self.assertNotIn("╭─ Qwen 2.5 3B", rendered)
+
 
 
 if __name__ == "__main__":

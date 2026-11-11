@@ -43,9 +43,9 @@ main{flex:1;display:flex;flex-direction:column;min-width:0}
 .bubble{padding:12px 16px;border-radius:16px;background:var(--bot);border:1px solid var(--line);line-height:1.6;box-shadow:var(--shadow);overflow-wrap:anywhere;min-width:0}
 .msg.user .bubble{background:var(--user);border-color:transparent;box-shadow:none}
 .bubble p{margin:0 0 .6em;white-space:pre-wrap}.bubble p:last-child{margin:0}
-.bubble code{background:var(--bg);padding:1px 6px;border-radius:6px;font-family:Consolas,monospace;font-size:.9em}
-.bubble pre{background:var(--code);color:var(--code-t);padding:12px 14px;border-radius:10px;overflow-x:auto;margin:.6em 0;font-size:.88rem}
-.bubble pre code{background:none;padding:0;color:inherit}
+.bubble code{font-family:Consolas,monospace;font-size:.9em}
+.bubble pre{background:none;color:var(--text);padding:0;border:0;overflow-x:auto;margin:.6em 0;font-size:.88rem}
+.bubble pre code{color:inherit}
 .src{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line);display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.8rem;color:var(--muted)}
 .src span.t{padding:3px 10px;border-radius:999px;background:var(--bg);color:var(--text)}
 .typing{display:flex;gap:5px;padding:6px 2px}
